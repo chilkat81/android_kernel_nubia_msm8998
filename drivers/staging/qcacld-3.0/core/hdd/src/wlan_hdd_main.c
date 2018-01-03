@@ -13779,6 +13779,9 @@ void hdd_drv_ops_inactivity_handler(unsigned long arg)
 /* Register the module init/exit functions */
 module_init(hdd_module_init);
 module_exit(hdd_module_exit);
+#else
+late_initcall(hdd_module_init);
+#endif
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros, Inc.");
