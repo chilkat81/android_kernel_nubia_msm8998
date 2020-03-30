@@ -187,3 +187,7 @@ obj-$(CONFIG_ESOC)              += esoc/
 obj-$(CONFIG_TEE)		+= tee/
 obj-$(CONFIG_NUBIA_HW_VERSION)	+= nubia_hw_version/
 obj-$(CONFIG_NUBIA_DRIVERS)	+= nubia/
+
+# optimise for size
+subdir-ccflags-y += $(call cc-option, -g0)
+subdir-ccflags-y += $(call cc-option, -Os)
