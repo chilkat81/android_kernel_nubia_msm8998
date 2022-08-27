@@ -1429,11 +1429,9 @@ struct f2fs_sb_info {
 
 	/* Precomputed FS UUID checksum for seeding other checksums */
 	__u32 s_chksum_seed;
-//nubia add start
-#ifdef CONFIG_NUBIA_F2FS_TRIM_STAT
-    int trim_stat;        /*use for f2fs trim stats,no trimed,triming,trimed */
-#endif
-//nubia add end
+
+	struct kmem_cache *inline_xattr_slab;	/* inline xattr entry */
+	unsigned int inline_xattr_slab_size;	/* default inline xattr slab size */
 };
 
 struct f2fs_private_dio {
