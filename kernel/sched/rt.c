@@ -2178,19 +2178,23 @@ static int find_lowest_rq(struct task_struct *task, int sync)
 					}
 				}
 
-				best_cpu = cpumask_first_and(lowest_mask,
-							     sched_domain_span(sd));
-				if (best_cpu < nr_cpu_ids) {
-					curr = cpu_rq(best_cpu)->curr;
-					/* Ensuring that boosted/prefer idle
-					 * tasks are not pre-empted even if low
-					 * priority*/
-					if(!curr || (schedtune_task_boost(curr) == 0
-						     && schedtune_prefer_idle(curr) == 0)) {
-						rcu_read_unlock();
-						return best_cpu;
-					}
-				}
+	for_each_domain(cpu, sd) {
+		if (sd->flags & SD_WAKE_AFFINE) {
+			int best_cpu;
+
+			/*
+			 * "this_cpu" is cheaper to preempt than a
+			 * remote processor.
+			 */
+			if (this_cpu != -1 &&
+			    cpumask_test_cpu(this_cpu, sched_domain_span(sd))) {
+				return this_cpu;
+			}
+
+			best_cpu = cpumask_first_and(lowest_mask,
+						     sched_domain_span(sd));
+			if (best_cpu < nr_cpu_ids) {
+				return best_cpu;
 			}
 		}
 		rcu_read_unlock();
@@ -2207,6 +2211,19 @@ static int find_lowest_rq(struct task_struct *task, int sync)
 			return cpu;
 		return -1;
 	}
+
+	/*
+	 * And finally, if there were no matches within the domains
+	 * just give the caller *something* to work with from the compatible
+	 * locations.
+	 */
+	if (this_cpu != -1)
+		return this_cpu;
+
+	cpu = cpumask_any(lowest_mask);
+	if (cpu < nr_cpu_ids)
+		return cpu;
+	return -1;
 }
 
 /* Will lock the rq it finds */
@@ -2217,7 +2234,9 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 	int cpu;
 
 	for (tries = 0; tries < RT_MAX_TRIES; tries++) {
-		cpu = find_lowest_rq(task, 0);
+		rcu_read_lock();
+		cpu = find_lowest_rq(task);
+		rcu_read_unlock();
 
 		if ((cpu == -1) || (cpu == rq->cpu))
 			break;
