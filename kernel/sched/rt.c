@@ -1606,8 +1606,8 @@ select_task_rq_rt_hmp(struct task_struct *p, int cpu, int sd_flag, int flags)
  * while handling a potentially long softint, or if the task is likely
  * to block preemptions soon because (a) it is a ksoftirq thread that is
  * handling slow softints, (b) it is idle and therefore likely to start
- * processing the irq's immediately, (c) the cpu is currently handling
- * hard irq's and will soon move on to the softirq handler.
+ * processing the irqs immediately, (c) the cpu is currently handling hard irqs
+ * and will soon move on to the softirq handler.
  */
 bool
 task_may_not_preempt(struct task_struct *task, int cpu)
@@ -1619,7 +1619,7 @@ task_may_not_preempt(struct task_struct *task, int cpu)
 	return ((softirqs & LONG_SOFTIRQ_MASK) &&
 		(task == cpu_ksoftirqd || is_idle_task(task) ||
 		 (task_thread_info(task)->preempt_count
-		     & (HARDIRQ_MASK | SOFTIRQ_MASK))));
+			& (HARDIRQ_MASK | SOFTIRQ_MASK))));
 }
 
 /*
@@ -1674,15 +1674,27 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags,
 	may_not_preempt = task_may_not_preempt(curr, cpu);
 	target = find_lowest_rq(p, sync);
 
-	/*
-	 * Check once for losing a race with the other core's irq handler.
-	 * This does not happen frequently, but it can avoid delaying
-	 * the execution of the RT task in those cases.
-	 */
-	if (target != -1) {
-		tgt_task = READ_ONCE(cpu_rq(target)->curr);
-		if (task_may_not_preempt(tgt_task, target))
-			target = find_lowest_rq(p, sync);
+		/*
+		 * Check once for losing a race with the other core's irq
+		 * handler. This does not happen frequently, but it can avoid
+		 * delaying the execution of the RT task in those cases.
+		 */
+		if (target != -1) {
+			tgt_task = READ_ONCE(cpu_rq(target)->curr);
+			if (task_may_not_preempt(tgt_task, target))
+				target = find_lowest_rq(p);
+		}
+
+		/*
+		 * If cpu is non-preemptible, prefer remote cpu
+		 * even if it's running a higher-prio task.
+		 * Otherwise: Don't bother moving it if the
+		 * destination CPU is not running a lower priority task.
+		 */
+		if (target != -1 &&
+		   (may_not_preempt ||
+		    p->prio < cpu_rq(target)->rt.highest_prio.curr))
+			cpu = target;
 	}
 	/*
 	 * Possible race. Don't bother moving it if the
