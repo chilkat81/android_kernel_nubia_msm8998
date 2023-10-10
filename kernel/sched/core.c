@@ -2075,8 +2075,6 @@ void scheduler_ipi(void)
 	if (got_boost_kick()) {
 		struct rq *rq = cpu_rq(cpu);
 
-		if (rq->curr->sched_class == &fair_sched_class)
-			check_for_migration(rq, rq->curr);
 		clear_boost_kick(cpu);
 	}
 
@@ -3539,9 +3537,6 @@ void scheduler_tick(void)
 	if (update_preferred_cluster(grp, curr, old_load))
 		set_preferred_cluster(grp);
 	rcu_read_unlock();
-
-	if (curr->sched_class == &fair_sched_class)
-		check_for_migration(rq, curr);
 
 	if (cpu == tick_do_timer_cpu)
 		core_ctl_check(wallclock);
